@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::{GameLoadState, LoadState};
+use crate::{GameState};
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct AssetLoading(pub Vec<HandleUntyped>);
 
 #[derive(Resource, Default)]
@@ -32,54 +32,17 @@ pub fn setup_assets(
     loading.0.push(pc_handle.clone_untyped());
 }
 
-pub fn render(
-    mut commands: Commands,
-    gamestate: Res<GameLoadState>,
-    flappy_assets: Res<FlappyAssets>
-) {
-    match gamestate.loaded {
-        LoadState::Loaded => {
-            if let Some(bg_sprite) = flappy_assets.background.clone() {
-                commands.spawn(
-                    SpriteBundle{
-                        texture: bg_sprite,
-                        ..default()
-                    }
-                );
-            }
-
-            if let Some(pc_sprite) = flappy_assets.pc.clone() {
-                commands.spawn(
-                    SpriteBundle{
-                        texture: pc_sprite,
-                        ..default()
-                    }
-                );
-            }
-        },
-        _ => {
-        }
-    }
-}
-
 pub fn check_assets_ready(
-    mut commands: Commands,
     server: Res<AssetServer>,
     loading: Res<AssetLoading>,
-    mut gamestate: ResMut<GameLoadState>
+    mut gamestate: ResMut<NextState<GameState>>
 ) {
-    if gamestate.loaded == LoadState::Loaded {
-        return;
-    }
-
     match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
         bevy::asset::LoadState::Failed => {
             println!("Failed to load one of the assets!!");
         }
         bevy::asset::LoadState::Loaded => {
-            println!("All loaded!!");
-            *gamestate = GameLoadState{loaded: LoadState::Loaded};
-            commands.spawn(Camera2dBundle::default());
+            gamestate.set(GameState::Game);
         }
         _ => {
             println!("Loading...");
