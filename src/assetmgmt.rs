@@ -18,10 +18,10 @@ pub fn setup_assets(
     mut loading: ResMut<AssetLoading>,
     mut flappy_assets: ResMut<FlappyAssets>,
 ) {
-    let base_handle: Handle<Image> = asset_server.load("base.png");
-    let bg_handle: Handle<Image> = asset_server.load("background-day.png");
-    let pipe_handle: Handle<Image> = asset_server.load("pipe-green.png");
-    let pc_handle: Handle<Image> = asset_server.load("redbird-upflap.png");
+    let base_handle: Handle<Image> = asset_server.load("sprites/base.png");
+    let bg_handle: Handle<Image> = asset_server.load("sprites/background-day.png");
+    let pipe_handle: Handle<Image> = asset_server.load("sprites/pipe-green.png");
+    let pc_handle: Handle<Image> = asset_server.load("sprites/redbird-upflap.png");
     flappy_assets.base = Some(base_handle.clone());
     flappy_assets.background = Some(bg_handle.clone());
     flappy_assets.pipe = Some(pipe_handle.clone());
