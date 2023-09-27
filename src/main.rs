@@ -3,6 +3,13 @@ mod assetmgmt;
 use assetmgmt::{check_assets_ready, setup_assets, FlappyAssets, AssetLoading};
 use bevy::{prelude::*, sprite::collide_aabb::{collide, Collision}};
 
+const BIRD_SIZE: Vec3 = Vec3::new(34., 24., 0.);
+const PIPE_SIZE: Vec3 = Vec3::new(52., 320., 0.);
+
+const X_SPEED: f32 = 100.0;
+const PIPE_GAP: f32 = 140.0;
+const PIPE_SPAWN_X: u32 = 155;
+
 #[derive(Clone, Resource, Copy, Default, Debug, Hash, States, PartialEq, Eq)]
 pub enum GameState {
     #[default]
@@ -127,6 +134,7 @@ fn shift_pipes(
     let dt = time.delta_seconds();
     for mut tf in &mut query {
         tf.translation.x -= 100.0 * dt;
+        tf.translation.x -= X_SPEED * dt;
     }
 }
 
@@ -160,7 +168,7 @@ fn spawn_pipe_on_timer(
             (
                 SpriteBundle{
                     texture: pipe_handle.clone(),
-                    transform: Transform::from_xyz(x_offset, upper_offset - pipe_height, 0.0),
+                    transform: Transform::from_xyz(PIPE_SPAWN_X as f32, upper_offset - PIPE_SIZE[1], 0.0),
                     ..default()
                 },
                 Pipe,
@@ -171,7 +179,7 @@ fn spawn_pipe_on_timer(
             (
                 SpriteBundle{
                     texture: pipe_handle,
-                    transform: Transform::from_xyz(x_offset, lower_offset, 0.0),
+                    transform: Transform::from_xyz(PIPE_SPAWN_X as f32, lower_offset, 0.0),
                     sprite: Sprite{
                         flip_y: true,
                         ..default()
@@ -202,9 +210,9 @@ pub fn check_for_collisions(
     for tf in &colliders {
         let collision = collide(
             bird_tf.translation,
-            bird_tf.scale.truncate(),
+            BIRD_SIZE.truncate(),
             tf.translation,
-            tf.scale.truncate()
+            PIPE_SIZE.truncate(),
         );
         if let Some(t) = collision {
             println!("Collision! {:?}", t);
