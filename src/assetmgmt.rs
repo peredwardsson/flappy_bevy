@@ -30,14 +30,15 @@ pub fn setup_assets(
     loading.0.push(bg_handle.clone_untyped());
     loading.0.push(pipe_handle.clone_untyped());
     loading.0.push(pc_handle.clone_untyped());
+
 }
 
 pub fn check_assets_ready(
-    server: Res<AssetServer>,
+    asset_server: Res<AssetServer>,
     loading: Res<AssetLoading>,
     mut gamestate: ResMut<NextState<GameState>>
 ) {
-    match server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
+    match asset_server.get_group_load_state(loading.0.iter().map(|h| h.id())) {
         bevy::asset::LoadState::Failed => {
             println!("Failed to load one of the assets!!");
         }
