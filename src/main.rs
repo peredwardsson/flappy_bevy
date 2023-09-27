@@ -1,7 +1,7 @@
 mod assetmgmt;
 
 use assetmgmt::{check_assets_ready, setup_assets, FlappyAssets, AssetLoading};
-use bevy::{prelude::*, sprite::collide_aabb::{collide, Collision}};
+use bevy::{prelude::*, sprite::collide_aabb::collide};
 
 const BIRD_SIZE: Vec3 = Vec3::new(34., 24., 0.);
 const PIPE_SIZE: Vec3 = Vec3::new(52., 320., 0.);
@@ -22,40 +22,13 @@ pub enum GameState {
 pub struct Bird;
 
 #[derive(Component)]
-struct Pipe;
+pub struct Pipe;
 
 #[derive(Component)]
 struct Base;
 
 #[derive(Component, Default)]
 pub struct Collider;
-
-#[derive(Component)]
-enum PipeDirection {
-    Up,
-    Down
-}
-
-#[derive(Component, Default)]
-struct Gap(f32);
-
-#[derive(Component, Default)]
-struct YCenter(f32);
-
-#[derive(Component)]
-struct PipePair {
-    gap: Gap,
-    y_center: YCenter
-}
-
-impl PipePair {
-    fn new(gap: f32, y_center: f32) -> Self {
-        return PipePair {
-            gap: Gap(gap),
-            y_center: YCenter(y_center)
-        }
-    }
-}
 
 #[derive(Bundle, Default)]
 struct BirdCollider {
@@ -117,7 +90,7 @@ fn apply_gravity(
 
 fn jump(
     keyboard_event: Res<Input<KeyCode>>,
-    mut tf: Query<(&mut VerticalVelocity, &IsGravity)>,
+    mut tf: Query<(&mut VerticalVelocity, With<IsGravity>)>,
     jump_amount: Res<JumpAmount>,
 ) {
     if keyboard_event.just_pressed(KeyCode::Space) {
@@ -133,7 +106,6 @@ fn shift_pipes(
 ) {
     let dt = time.delta_seconds();
     for mut tf in &mut query {
-        tf.translation.x -= 100.0 * dt;
         tf.translation.x -= X_SPEED * dt;
     }
 }
@@ -147,7 +119,6 @@ fn spawn_pipe_on_timer(
     mut commands: Commands,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
-    assets: Res<Assets<Image>>,
     mut pipe_timer: ResMut<PipeSpawnTimer>
 ) {
     // this function is really slow.
@@ -156,14 +127,10 @@ fn spawn_pipe_on_timer(
     if pipe_timer.timer.just_finished() {
         println!("Spawning new pipe!");
         let pipe_handle: Handle<Image> = asset_server.load("sprites/pipe-green.png");
-        let pipe_height = assets.get(&pipe_handle).unwrap().texture_descriptor.size.height as f32;
-        let gap = 140.0;
         let y_center = 30.0;
-        let pipe_pair = PipePair::new(gap, y_center);
-        let x_offset = 155.;
 
-        let upper_offset = pipe_pair.y_center.0 - pipe_pair.gap.0 / 2.0;
-        let lower_offset = pipe_pair.y_center.0 + pipe_pair.gap.0 / 2.0;
+        let upper_offset = y_center - PIPE_GAP / 2.0;
+        let lower_offset = y_center + PIPE_GAP / 2.0;
         commands.spawn(
             (
                 SpriteBundle{
@@ -198,7 +165,7 @@ struct JumpAmount(f32);
 
 pub fn check_for_collisions(
     bird_query: Query<&Transform, With<Bird>>,
-    colliders: Query<&Transform, (With<Collider>, Without<Bird>)>
+    colliders: Query<&Transform, (With<Collider>, With<Pipe>)>
 ) {
     let bird_tf = match bird_query.get_single() {
         Ok(t) => t,
