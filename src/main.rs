@@ -226,6 +226,14 @@ pub fn check_for_collisions(
     }
 }
 
+fn reset(
+    mut _commands: Commands,
+    _pipe_query: Query<Entity, With<Pipe>>,
+    _bird_query: Query<Entity, With<Bird>>,
+) {
+
+}
+
 fn main() {
     App::new()
         .add_plugins(
@@ -289,14 +297,15 @@ mod game {
                     }
                 )
                 .add_systems(
-                    OnEnter(GameState::Game), (setup)
+                    OnEnter(GameState::Game), setup
                 )
+                .add_systems(OnExit(GameState::Game), reset)
                 .add_systems(
                     FixedUpdate,
                     (
                         apply_gravity,
                         shift_pipes,
-                        spawn_pipe_on_timer.after((jump)),
+                        spawn_pipe_on_timer.after(jump),
                         check_for_collisions,
                     ).run_if(in_state(GameState::Game))
                 );
