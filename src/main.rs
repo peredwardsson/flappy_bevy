@@ -47,9 +47,13 @@ struct Gravity(f32);
 #[derive(Component)]
 struct VerticalVelocity(f32);
 
+#[derive(Resource)]
+pub struct Score(u32);
+
 pub fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>
+    asset_server: Res<AssetServer>,
+    score: Res<Score>,
 ) {
     println!("Starting up!");
 
@@ -71,6 +75,12 @@ pub fn setup(
         },
         VerticalVelocity(0.0),
         IsGravity
+        )
+    );
+    commands.spawn(
+        TextBundle::from_section(
+            score.0.to_string(),
+            TextStyle { font_size: 80.0, color: Color::Rgba { red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0 }, ..default() },
         )
     );
 
@@ -160,6 +170,22 @@ fn spawn_pipe_on_timer(
     }
 }
 
+pub fn check_pipe_update_score(
+    pipe_query: Query<&Transform, With<Pipe>>,
+    mut score: ResMut<Score>,
+    mut score_text: Query<&mut Text>,
+) {
+    let mut pipes_passed = 0;
+    for tf in &pipe_query {
+        if tf.translation.x + PIPE_SIZE[0]/2. < 0.0 {
+            // commands.entity(pipe_entity).despawn();
+            pipes_passed += 1;
+        }
+    }
+    score.0 = pipes_passed/2;
+    score_text.single_mut().sections[0].value = score.0.to_string();
+}
+
 #[derive(Resource)]
 struct JumpAmount(f32);
 
@@ -181,8 +207,8 @@ pub fn check_for_collisions(
             tf.translation,
             PIPE_SIZE.truncate(),
         );
-        if let Some(t) = collision {
-            println!("Collision! {:?}", t);
+        if let Some(_t) = collision {
+            // println!("Collision! {:?}", t);
         }
     }
 }
@@ -204,7 +230,7 @@ fn main() {
         )
         .insert_resource(FlappyAssets::default())
         .insert_resource(AssetLoading::default())
-        .insert_resource(JumpAmount(4.0))
+        .insert_resource(JumpAmount(3.0))
         .insert_resource(Gravity(6.82))
         .run();
 
@@ -249,17 +275,22 @@ mod game {
                         )
                     }
                 )
+                .insert_resource(Score(0))
                 .add_systems(
-                    OnEnter(GameState::Game), (setup)
+                    OnEnter(GameState::Game), setup
+                )
+                .add_systems(
+                    Update,
+                    jump
                 )
                 .add_systems(
                     FixedUpdate,
                     (
                         apply_gravity,
-                        jump,
                         shift_pipes,
-                        spawn_pipe_on_timer.after((jump)),
+                        spawn_pipe_on_timer.after(jump),
                         check_for_collisions,
+                        check_pipe_update_score,
                     ).run_if(in_state(GameState::Game))
                 );
 
