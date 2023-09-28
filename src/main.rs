@@ -47,8 +47,12 @@ struct Gravity(f32);
 #[derive(Component)]
 struct VerticalVelocity(f32);
 
+#[derive(Resource)]
+pub struct Score(u32);
+
 pub fn setup(
     mut commands: Commands,
+    mut score: ResMut<Score>,
     asset_server: Res<AssetServer>
 ) {
     println!("Starting up!");
@@ -73,6 +77,8 @@ pub fn setup(
         IsGravity
         )
     );
+
+    score.0 = 0;
 
 }
 
@@ -163,6 +169,13 @@ fn spawn_pipe_on_timer(
 #[derive(Resource)]
 struct JumpAmount(f32);
 
+#[derive(Event, Default)]
+pub struct GameOverEvent;
+
+#[derive(Event, Default)]
+pub struct NewGameEvent;
+
+
 pub fn check_for_collisions(
     bird_query: Query<&Transform, With<Bird>>,
     colliders: Query<&Transform, (With<Collider>, With<Pipe>)>
@@ -181,9 +194,48 @@ pub fn check_for_collisions(
             tf.translation,
             PIPE_SIZE.truncate(),
         );
-        if let Some(t) = collision {
-            println!("Collision! {:?}", t);
-        }
+    }
+}
+
+pub fn check_for_game_over(
+    mut go_event: EventReader<GameOverEvent>,
+    mut score: ResMut<Score>,
+    mut commands: Commands
+) {
+    if !go_event.is_empty() {
+        go_event.clear();
+        score.0 = 0;
+    }
+}
+
+pub fn new_game(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    let pc_handle: Handle<Image> = asset_server.load("./sprites/redbird-downflap.png");
+
+    commands.spawn(
+        (BirdCollider {
+            sprite: SpriteBundle {
+                texture: pc_handle,
+                ..default()
+            },
+            ..default()
+        },
+        VerticalVelocity(0.0),
+        IsGravity
+        )
+    );
+}
+
+pub fn listen_for_new_game(
+    keyboard_event: Res<Input<KeyCode>>,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    if keyboard_event.just_pressed(KeyCode::Q) {
+        println!("Hit Q! Do a new game!");
+        game_state.set(GameState::Menu);
+        game_state.set(GameState::Game);
     }
 }
 
@@ -249,8 +301,20 @@ mod game {
                         )
                     }
                 )
+                .insert_resource(
+                    Score(0)
+                )
+                .add_event::<GameOverEvent>()
+                .add_event::<NewGameEvent>()
                 .add_systems(
-                    OnEnter(GameState::Game), (setup)
+                    OnEnter(GameState::Game), setup
+                )
+                .add_systems(
+                    OnExit(GameState::Game),
+                    (
+                        despawn_screen::<Bird>,
+                        despawn_screen::<Pipe>,
+                    )
                 )
                 .add_systems(
                     FixedUpdate,
@@ -258,8 +322,9 @@ mod game {
                         apply_gravity,
                         jump,
                         shift_pipes,
-                        spawn_pipe_on_timer.after((jump)),
+                        spawn_pipe_on_timer,
                         check_for_collisions,
+                        listen_for_new_game,
                     ).run_if(in_state(GameState::Game))
                 );
 
