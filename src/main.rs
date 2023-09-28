@@ -52,8 +52,8 @@ pub struct Score(u32);
 
 pub fn setup(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut score: ResMut<Score>,
-    asset_server: Res<AssetServer>
 ) {
     println!("Starting up!");
 
@@ -75,6 +75,16 @@ pub fn setup(
         },
         VerticalVelocity(0.0),
         IsGravity
+        )
+    );
+    commands.spawn(
+        TextBundle::from_section(
+            score.0.to_string(),
+            TextStyle {
+                font_size: 80.0,
+                color: Color::Rgba { red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0 },
+                ..default()
+            },
         )
     );
 
@@ -166,6 +176,22 @@ fn spawn_pipe_on_timer(
     }
 }
 
+pub fn check_pipe_update_score(
+    pipe_query: Query<&Transform, With<Pipe>>,
+    mut score: ResMut<Score>,
+    mut score_text: Query<&mut Text>,
+) {
+    let mut pipes_passed = 0;
+    for tf in &pipe_query {
+        if tf.translation.x + PIPE_SIZE[0]/2. < 0.0 {
+            // commands.entity(pipe_entity).despawn();
+            pipes_passed += 1;
+        }
+    }
+    score.0 = pipes_passed/2;
+    score_text.single_mut().sections[0].value = score.0.to_string();
+}
+
 #[derive(Resource)]
 struct JumpAmount(f32);
 
@@ -194,48 +220,9 @@ pub fn check_for_collisions(
             tf.translation,
             PIPE_SIZE.truncate(),
         );
-    }
-}
-
-pub fn check_for_game_over(
-    mut go_event: EventReader<GameOverEvent>,
-    mut score: ResMut<Score>,
-    mut commands: Commands
-) {
-    if !go_event.is_empty() {
-        go_event.clear();
-        score.0 = 0;
-    }
-}
-
-pub fn new_game(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    let pc_handle: Handle<Image> = asset_server.load("./sprites/redbird-downflap.png");
-
-    commands.spawn(
-        (BirdCollider {
-            sprite: SpriteBundle {
-                texture: pc_handle,
-                ..default()
-            },
-            ..default()
-        },
-        VerticalVelocity(0.0),
-        IsGravity
-        )
-    );
-}
-
-pub fn listen_for_new_game(
-    keyboard_event: Res<Input<KeyCode>>,
-    mut game_state: ResMut<NextState<GameState>>,
-) {
-    if keyboard_event.just_pressed(KeyCode::Q) {
-        println!("Hit Q! Do a new game!");
-        game_state.set(GameState::Menu);
-        game_state.set(GameState::Game);
+        if let Some(t) = collision {
+            println!("Collision! {:?}", t);
+        }
     }
 }
 
@@ -256,7 +243,7 @@ fn main() {
         )
         .insert_resource(FlappyAssets::default())
         .insert_resource(AssetLoading::default())
-        .insert_resource(JumpAmount(4.0))
+        .insert_resource(JumpAmount(3.0))
         .insert_resource(Gravity(6.82))
         .run();
 
@@ -301,30 +288,16 @@ mod game {
                         )
                     }
                 )
-                .insert_resource(
-                    Score(0)
-                )
-                .add_event::<GameOverEvent>()
-                .add_event::<NewGameEvent>()
                 .add_systems(
-                    OnEnter(GameState::Game), setup
-                )
-                .add_systems(
-                    OnExit(GameState::Game),
-                    (
-                        despawn_screen::<Bird>,
-                        despawn_screen::<Pipe>,
-                    )
+                    OnEnter(GameState::Game), (setup)
                 )
                 .add_systems(
                     FixedUpdate,
                     (
                         apply_gravity,
-                        jump,
                         shift_pipes,
-                        spawn_pipe_on_timer,
+                        spawn_pipe_on_timer.after((jump)),
                         check_for_collisions,
-                        listen_for_new_game,
                     ).run_if(in_state(GameState::Game))
                 );
 
