@@ -16,6 +16,7 @@ pub enum GameState {
     Loading,
     Menu,
     Game,
+    GameOver,
 }
 
 #[derive(Component, Default)]
@@ -227,11 +228,21 @@ pub fn check_for_collisions(
 }
 
 fn reset(
-    mut _commands: Commands,
-    _pipe_query: Query<Entity, With<Pipe>>,
-    _bird_query: Query<Entity, With<Bird>>,
+    mut commands: Commands,
+    keys: Res<Input<KeyCode>>,
+    pipe_query: Query<Entity, With<Pipe>>,
+    bird_query: Query<Entity, With<Bird>>,
+    mut game_state: ResMut<NextState<GameState>>
 ) {
 
+    if keys.just_pressed(KeyCode::R) {
+        for ent in &pipe_query {
+            commands.entity(ent).despawn();
+        }
+        let pc = bird_query.single();
+        commands.entity(pc).despawn();
+        game_state.set(GameState::GameOver)
+    }
 }
 
 fn main() {
@@ -296,17 +307,24 @@ mod game {
                         )
                     }
                 )
+                .insert_resource(Score(0))
                 .add_systems(
                     OnEnter(GameState::Game), setup
                 )
                 .add_systems(OnExit(GameState::Game), reset)
                 .add_systems(
+                    Update,
+                    (reset,
+                    jump,)
+                )
+                .add_systems(
                     FixedUpdate,
                     (
                         apply_gravity,
                         shift_pipes,
-                        spawn_pipe_on_timer.after(jump),
+                        spawn_pipe_on_timer,
                         check_for_collisions,
+                        check_pipe_update_score,
                     ).run_if(in_state(GameState::Game))
                 );
 
